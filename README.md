@@ -1,7 +1,46 @@
 # Kustomized Helm Action
 
-This GitHub Action generates manifests for Helm charts and kustomize overlays.
+This GitHub Action generates manifests for Helm charts and then combines them in kustomize overlays.
 
+This action is insanely opinionated about how I run my repository. It may not support your use case, but please feel free to fork and modify it to suit your needs.
+
+This action expects a folder structure of `./<source_folder>/<app_name>/overlays/<cluster_identifier>` where `<source_folder>` is the input provided to the action. 
+
+*  `<source_folder>` can be thought of environment names like `dev`, `staging`, and `production`. Or as other clear seperations of concerns. The action will generate manifests for each environment and commit them to the destination branch.
+
+* `<app_name>` is the name of the application. This is used by `argocd` to identify the application when used with an `applicationset`.
+
+* `<cluster_identifier>` is the name of the cluster. This is used by `argocd` to identify the cluster when used with an `applicationset`.
+
+```
+dev
+  myapp
+    base
+      Chart.yaml
+      kustomization.yaml
+      values.yaml
+    overlays
+      cluster1`
+        kustomization.yaml
+        my-patch.yaml
+        values.yaml
+      cluster2`
+        kustomization.yaml
+        values.yaml
+staging
+  myapp
+    base
+      Chart.yaml
+      kustomization.yaml
+      values.yaml
+    overlays
+      cluster1
+        kustomization.yaml
+        values.yaml
+      cluster2
+        kustomization.yaml
+        values.yaml
+```
 ## Inputs
 
 ### `source_folder`
@@ -19,7 +58,7 @@ The version of Helm to use. This input is not required. The default value is `v3
 ## Usage
 
 ```yaml
-- uses: JamesD/Kustomized-Helm-Action@v1
+- uses: jamesatintegratnio/Kustomized-Helm-Action@main
   with:
     source_folder: 'your-folder'
     destination_branch: 'your-branch'
@@ -39,9 +78,3 @@ The version of Helm to use. This input is not required. The default value is `v3
 ## Author
 
 James D.
-
-## Branding
-
-The action icon is `git-merge` and the color is `red`.
-
-Please note that this is a composite run steps action.
