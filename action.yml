@@ -1,0 +1,113 @@
+name: Kustomized Helm Action
+description: Generate manifests for Helm charts and kustomize overlays
+author: 'James D.'
+branding:
+  icon: 'git-merge'
+  color: 'red'
+inputs:
+  source_folder:
+    description: 'The folder containing the Helm charts and kustomize overlays'
+    required: true
+    default: 'dev'
+  destination_branch:
+    description: 'The branch to commit the changes to'
+    required: false
+    default: ${{ github.event.head_commit.current_branch }}
+  helm_version:
+    description: 'The version of Helm to use'
+    required: false
+    default: 'v3.14.4'
+runs:
+  using: composite
+
+  steps:
+    - run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+      shell: bash
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v4.2.0
+      with:
+        version: ${{ inputs.helm_version }}
+    
+    - name: Get Directories for Processing
+      run: |
+        dirs=$(find "$(pwd)" -type d -regex ".*/${{ inputs.source_folder }}/[^/]+/overlays/[^/]+" | tr '\n' ',')
+        echo "dirs=${dirs%,}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Add Helm repositories dynamically
+      run: |
+        IFS=',' read -r -a dir_array <<< "${dirs}"
+        for dir in "${dir_array[@]}"; do
+          if [ -d "$dir" ]; then
+            cd $dir
+            cd ../../base
+            if [ -f Chart.yaml ]; then
+              dependencies=$(yq e '.dependencies[] | (.name + "=" + .repository)' Chart.yaml)
+              IFS=$'\n'
+              for dep in $dependencies; do
+                repo_name="${dep%=*}"
+                repo_url="${dep#*=}"
+                if [ ! -z "$repo_url" ]; then
+                  helm repo add "$repo_name" "$repo_url"
+                fi
+              done
+              helm repo update
+            else
+              echo "Chart.yaml does not exist in the base directory"
+            fi
+            cd $GITHUB_WORKSPACE
+          fi
+        done
+      shell: bash
+
+    - name: Template Helm charts
+      run: |
+        IFS=',' read -r -a dir_array <<< "${dirs}"
+        for dir in "${dir_array[@]}"; do
+          if [ -d "$dir" ]; then
+            cd $dir
+            cd ../../base
+            if [ -f Chart.yaml ]; then
+              cd $dir
+              BASE_NAMESPACE=$(cat ../../base/kustomization.yaml | yq e '.namespace // "default"' -)
+              NAMESPACE=$(cat kustomization.yaml | yq e ".namespace // \"$BASE_NAMESPACE\"" -)
+              helm dependency build ../../base
+              touch ../../base/values.yaml
+              touch values.yaml
+              helm template \
+                --release-name ${NAMESPACE} \
+                ../../base \
+                -f ../../base/values.yaml \
+                --include-crds \
+                -f values.yaml > helm-all.yaml
+            fi
+            cd $dir
+            kustomize build . > all.yaml
+            git add all.yaml
+          fi
+          cd $GITHUB_WORKSPACE
+        done
+      shell: bash
+
+    - name: Commit changes to branch
+      run: |
+        git fetch origin ${{ inputs.branch }}:${{ inputs.branch }} || true
+        git stash
+        if git show-ref --verify --quiet refs/heads/${{ inputs.branch }}; then
+          git switch ${{ inputs.branch }}
+        else
+          git switch --create ${{ inputs.branch }} origin/${{ inputs.branch }} || git switch --create ${{ inputs.branch }}
+        fi
+        git rm -rf . --quiet
+        git stash pop
+        git add **/all.yaml
+        if ! git diff --quiet --staged; then
+          git commit -m "${{ github.event.head_commit.message }}"
+          git push --set-upstream origin ${{ inputs.branch }}
+        else
+          echo "No changes detected"
+        fi
+      shell: bash
