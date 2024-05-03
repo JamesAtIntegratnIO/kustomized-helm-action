@@ -73,14 +73,6 @@ runs:
     #    d. Change the directory back to the original directory.
     # 3. Add and update the Helm repositories using the associative array.
 
-    # Example usage:
-    # - name: Add and update Helm repositories
-    #   run: |
-    #     declare -A repos
-    #     dirs="dir1,dir2,dir3"
-    #     # ... (rest of the script)
-
-    # Note: This script assumes that 'yq' and 'helm' commands are available in the environment.
     - name: Add Helm repositories dynamically
       run: |     
         # Initialize an associative array to hold the repositories
