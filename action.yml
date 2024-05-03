@@ -1,5 +1,9 @@
 name: Kustomized Helm Action
-description: Generate manifests for Helm charts and kustomize overlays
+description: |
+  Generate manifests for Helm charts and kustomize overlays using GitHub Actions.
+  This action automates the process of generating manifests for Helm charts and kustomize overlays, allowing for easier deployment and management of Kubernetes applications.
+  It integrates with Helm and dynamically adds Helm repositories based on the charts and overlays found in the specified source folder.
+  The generated manifests are then templated and committed to the specified destination branch.
 author: 'James D.'
 branding:
   icon: 'git-merge'
@@ -30,30 +34,54 @@ runs:
       uses: azure/setup-helm@v4.2.0
       with:
         version: ${{ inputs.helm_version }}
-    
+
+    # This script sets the `dirs` environment variable by finding directories that match a specific pattern.
+    # It uses the `find` command to search for directories under the current working directory that match the pattern:
+    #   - The directory must have a subdirectory named `${{ inputs.source_folder }}`.
+    #   - The subdirectory must have a subdirectory named "overlays".
+    #   - The subdirectory "overlays" must have at least one more subdirectory.
+    # The found directories are then stored in the `dirs` variable, separated by commas.
+    # Finally, the value of `dirs` is appended to the `$GITHUB_ENV` file, making it available as an environment variable in subsequent steps.
     - name: Get Directories for Processing
       run: |
-        dirs=$(find "$(pwd)" -type d -regex ".*/${{ inputs.source_folder }}/[^/]+/overlays/[^/]+" | tr '\n' ',')
+        set -e
+        dirs=$(find "$(pwd)" -type d -regex ".*/${{ inputs.source_folder }}/[^/]+/overlays/[^/]+" | tr '\n' ',') || true
+        if [ -z "$dirs" ]; then
+          echo "No directories found for processing."
+          exit 0
+        fi
         echo "dirs=${dirs%,}" >> $GITHUB_ENV
+        echo "Found directories for processing: $dirs"
       shell: bash
 
+    # This script adds Helm repositories based on the dependencies specified in the Chart.yaml file.
+    # It loops through the directories specified in the 'dirs' variable and checks if each directory exists.
+    # If a directory exists, it navigates to the '../../base' directory and checks if the 'Chart.yaml' file exists.
+    # If the file exists, it retrieves the dependencies from the 'Chart.yaml' file using 'yq' command.
+    # For each dependency, it extracts the repository name and URL and adds the repository using 'helm repo add' command.
+    # Finally, it updates the Helm repositories using 'helm repo update' command.
+    # If the 'Chart.yaml' file does not exist in the base directory, it prints an error message.
     - name: Add Helm repositories dynamically
-      run: |
+      run: |     
         IFS=',' read -r -a dir_array <<< "${dirs}"
         for dir in "${dir_array[@]}"; do
           if [ -d "$dir" ]; then
+            echo "Processing directory: $dir"
             cd $dir
             cd ../../base
             if [ -f Chart.yaml ]; then
+              echo "Chart.yaml found in the base directory"
               dependencies=$(yq e '.dependencies[] | (.name + "=" + .repository)' Chart.yaml)
               IFS=$'\n'
               for dep in $dependencies; do
                 repo_name="${dep%=*}"
                 repo_url="${dep#*=}"
                 if [ ! -z "$repo_url" ]; then
+                  echo "Adding Helm repository: $repo_name=$repo_url"
                   helm repo add "$repo_name" "$repo_url"
                 fi
               done
+              echo "Updating Helm repositories"
               helm repo update
             else
               echo "Chart.yaml does not exist in the base directory"
@@ -63,28 +91,51 @@ runs:
         done
       shell: bash
 
+    # This script performs the following actions:
+    # 1. Reads a comma-separated list of directories from the variable 'dirs'.
+    # 2. Iterates over each directory in the 'dir_array'.
+    # 3. Checks if the directory exists.
+    # 4. Changes the current directory to the specified directory.
+    # 5. Navigates to the '../../base' directory.
+    # 6. Checks if 'Chart.yaml' file exists.
+    # 7. Changes the current directory back to the specified directory.
+    # 8. Reads the 'namespace' value from the '../../base/kustomization.yaml' file using 'yq' command.
+    # 9. Reads the 'namespace' value from the 'kustomization.yaml' file using 'yq' command.
+    # 10. Builds the Helm dependencies for the '../../base' directory.
+    # 11. Creates 'values.yaml' files in the '../../base' and current directories.
+    # 12. Generates the Helm template using the 'helm template' command.
+    # 13. Redirects the output to 'helm-all.yaml' file.
+    # 14. Builds the Kubernetes manifests using 'kustomize' command.
+    # 15. Adds the 'all.yaml' file to the Git repository.
+    # 16. Changes the current directory back to the root directory.
     - name: Template Helm charts
       run: |
         IFS=',' read -r -a dir_array <<< "${dirs}"
         for dir in "${dir_array[@]}"; do
           if [ -d "$dir" ]; then
+            echo "Processing directory: $dir"
             cd $dir
             cd ../../base
             if [ -f Chart.yaml ]; then
+              echo "Chart.yaml found in the base directory"
               cd $dir
               BASE_NAMESPACE=$(cat ../../base/kustomization.yaml | yq e '.namespace // "default"' -)
               NAMESPACE=$(cat kustomization.yaml | yq e ".namespace // \"$BASE_NAMESPACE\"" -)
+              echo "Building Helm dependencies for the base directory"
               helm dependency build ../../base
+              echo "Creating values.yaml files"
               touch ../../base/values.yaml
               touch values.yaml
+              echo "Generating Helm template"
               helm template \
-                --release-name ${NAMESPACE} \
-                ../../base \
-                -f ../../base/values.yaml \
-                --include-crds \
-                -f values.yaml > helm-all.yaml
+          --release-name ${NAMESPACE} \
+          ../../base \
+          -f ../../base/values.yaml \
+          --include-crds \
+          -f values.yaml > helm-all.yaml
             fi
             cd $dir
+            echo "Building Kubernetes manifests using kustomize"
             kustomize build . > all.yaml
             git add all.yaml
           fi
@@ -92,9 +143,21 @@ runs:
         done
       shell: bash
 
+    # This script performs the following steps:
+    # 1. Fetches the latest changes from the remote repository for the specified branch.
+    # 2. Stashes any local changes.
+    # 3. Checks if the branch already exists locally. If it does, switches to that branch. If not, creates a new branch based on the remote branch.
+    # 4. Removes all files and directories in the current directory.
+    # 5. Pops the stashed changes.
+    # 6. Adds all files named "all.yaml" to the staging area.
+    # 7. Checks if there are any staged changes. If there are, commits the changes with the commit message from the latest commit in the current branch.
+    # 8. Pushes the changes to the remote repository.
+    # 9. Prints a message indicating whether changes were committed and pushed or if no changes were detected.
     - name: Commit changes to branch
       run: |
-        git fetch origin ${{ inputs.branch }}:${{ inputs.branch }} || true
+        if ! git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}; then
+          echo "Failed to fetch changes from origin, will create the branch instead"
+        fi
         git stash
         if git show-ref --verify --quiet refs/heads/${{ inputs.branch }}; then
           git switch ${{ inputs.branch }}
@@ -103,10 +166,19 @@ runs:
         fi
         git rm -rf . --quiet
         git stash pop
+        echo "${{ inputs.source_folder }}/*/base/" >> .gitignore
+        echo "${{ inputs.source_folder }}/**/values.yaml" >> .gitignore
+        echo "${{ inputs.source_folder }}/**/helm-all.yaml" >> .gitignore
         git add **/all.yaml
         if ! git diff --quiet --staged; then
-          git commit -m "${{ github.event.head_commit.message }}"
-          git push --set-upstream origin ${{ inputs.branch }}
+          git commit -m "${{ github.event.head_commit.message }} (Built from ${{ github.event.head_commit.id }})"
+          if git push --set-upstream origin ${{ inputs.branch }}; then
+            echo "Push successful"
+          else
+            echo "Push failed"
+            exit 1
+          fi
+          echo "Changes committed and pushed to branch"
         else
           echo "No changes detected"
         fi
