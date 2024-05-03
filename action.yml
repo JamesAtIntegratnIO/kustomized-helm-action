@@ -53,14 +53,35 @@ runs:
         echo "dirs=${dirs%,}" >> $GITHUB_ENV
         echo "Found directories for processing: $dirs"
       shell: bash
+      
+    # This script is used to initialize an associative array to hold repositories and add/update Helm repositories.
+    # It loops over directories specified in the 'dirs' variable and checks if a 'Chart.yaml' file exists in the base directory.
+    # If the file exists, it extracts the dependencies and their repository URLs using 'yq' command.
+    # It then adds the repositories to the associative array.
+    # Finally, it adds and updates the Helm repositories using the 'helm' command.
 
-    # This script adds Helm repositories based on the dependencies specified in the Chart.yaml file.
-    # It loops through the directories specified in the 'dirs' variable and checks if each directory exists.
-    # If a directory exists, it navigates to the '../../base' directory and checks if the 'Chart.yaml' file exists.
-    # If the file exists, it retrieves the dependencies from the 'Chart.yaml' file using 'yq' command.
-    # For each dependency, it extracts the repository name and URL and adds the repository using 'helm repo add' command.
-    # Finally, it updates the Helm repositories using 'helm repo update' command.
-    # If the 'Chart.yaml' file does not exist in the base directory, it prints an error message.
+    # Variables:
+    # - dirs: A comma-separated list of directories to process.
+
+    # Steps:
+    # 1. Initialize an associative array to hold the repositories.
+    # 2. Loop over the directories specified in 'dirs' variable.
+    #    a. Check if the directory exists.
+    #    b. If it exists, change the directory to the base directory.
+    #    c. Check if 'Chart.yaml' file exists in the base directory.
+    #       - If it exists, extract the dependencies and their repository URLs.
+    #       - Add the repositories to the associative array.
+    #    d. Change the directory back to the original directory.
+    # 3. Add and update the Helm repositories using the associative array.
+
+    # Example usage:
+    # - name: Add and update Helm repositories
+    #   run: |
+    #     declare -A repos
+    #     dirs="dir1,dir2,dir3"
+    #     # ... (rest of the script)
+
+    # Note: This script assumes that 'yq' and 'helm' commands are available in the environment.
     - name: Add Helm repositories dynamically
       run: |     
         # Initialize an associative array to hold the repositories
