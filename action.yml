@@ -191,12 +191,12 @@ runs:
           echo "Failed to fetch changes from origin, will create the branch instead"
         fi
         git stash
-        if git show-ref --verify --quiet refs/heads/${{ inputs.destination_branch }}; then
-          git switch -q ${{ inputs.destination_branch }}
+        if git show-ref --verify refs/heads/${{ inputs.destination_branch }}; then
+          git switch  ${{ inputs.destination_branch }}
         else
-          git switch --create -q ${{ inputs.destination_branch }} origin/${{ inputs.destination_branch }} || git switch --create -q ${{ inputs.destination_branch }}
+          git switch --create  ${{ inputs.destination_branch }} origin/${{ inputs.destination_branch }} || git switch --create ${{ inputs.destination_branch }}
         fi
-        git rm -rf . --quiet
+        git rm -rf .
         git stash pop
         git add **/all.yaml
         if ! git diff --quiet --staged; then
