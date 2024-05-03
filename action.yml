@@ -195,7 +195,7 @@ runs:
         else
           git switch --create  ${{ inputs.destination_branch }} origin/${{ inputs.destination_branch }} || git switch --create ${{ inputs.destination_branch }}
         fi
-        git rm -rf .
+        git rm -rf . --quiet
         git stash pop
         git add **/all.yaml
         if ! git diff --quiet --staged; then
