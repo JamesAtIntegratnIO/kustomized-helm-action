@@ -63,6 +63,10 @@ runs:
     # If the 'Chart.yaml' file does not exist in the base directory, it prints an error message.
     - name: Add Helm repositories dynamically
       run: |     
+        # Initialize an associative array to hold the repositories
+        declare -A repos
+
+        # Loop over directories to build the list of repositories
         IFS=',' read -r -a dir_array <<< "${dirs}"
         for dir in "${dir_array[@]}"; do
           if [ -d "$dir" ]; then
@@ -77,18 +81,25 @@ runs:
                 repo_name="${dep%=*}"
                 repo_url="${dep#*=}"
                 if [ ! -z "$repo_url" ]; then
-                  echo "Adding Helm repository: $repo_name=$repo_url"
-                  helm repo add "$repo_name" "$repo_url"
+                  # Add the repository to the associative array
+                  repos["$repo_name"]="$repo_url"
                 fi
               done
-              echo "Updating Helm repositories"
-              helm repo update
             else
               echo "Chart.yaml does not exist in the base directory"
             fi
             cd $GITHUB_WORKSPACE
           fi
         done
+
+        # Add and update the repositories
+        for repo_name in "${!repos[@]}"; do
+          repo_url="${repos[$repo_name]}"
+          echo "Adding Helm repository: $repo_name=$repo_url"
+          helm repo add "$repo_name" "$repo_url"
+        done
+        echo "Updating Helm repositories"
+        helm repo update
       shell: bash
 
     # This script performs the following actions:
