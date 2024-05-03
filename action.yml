@@ -1,9 +1,8 @@
 name: Kustomized Helm Action
 description: |
-  Generate manifests for Helm charts and kustomize overlays using GitHub Actions.
-  This action automates the process of generating manifests for Helm charts and kustomize overlays, allowing for easier deployment and management of Kubernetes applications.
-  It integrates with Helm and dynamically adds Helm repositories based on the charts and overlays found in the specified source folder.
-  The generated manifests are then templated and committed to the specified destination branch.
+  Generate manifests for Helm and kustomize using GitHub Actions.
+  Automate deployment and management of Kubernetes apps.
+  Add Helm repos dynamically and commit to destination branch.
 author: 'James D.'
 branding:
   icon: 'git-merge'
