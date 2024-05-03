@@ -1,8 +1,6 @@
 name: Kustomized Helm Action
-description: |
-  Generate manifests for Helm and kustomize using GitHub Actions.
-  Automate deployment and management of Kubernetes apps.
-  Add Helm repos dynamically and commit to destination branch.
+description: Generate manifests for Helm and kustomize using GitHub Actions.
+
 author: 'James D.'
 branding:
   icon: 'git-merge'
