@@ -160,15 +160,12 @@ runs:
         fi
         git stash
         if git show-ref --verify --quiet refs/heads/${{ inputs.branch }}; then
-          git switch ${{ inputs.branch }}
+          git switch -q ${{ inputs.branch }}
         else
-          git switch --create ${{ inputs.branch }} origin/${{ inputs.branch }} || git switch --create ${{ inputs.branch }}
+          git switch --create -q ${{ inputs.branch }} origin/${{ inputs.branch }} || git switch --create -q ${{ inputs.branch }}
         fi
         git rm -rf . --quiet
         git stash pop
-        echo "${{ inputs.source_folder }}/*/base/" >> .gitignore
-        echo "${{ inputs.source_folder }}/**/values.yaml" >> .gitignore
-        echo "${{ inputs.source_folder }}/**/helm-all.yaml" >> .gitignore
         git add **/all.yaml
         if ! git diff --quiet --staged; then
           git commit -uno -m "${{ github.event.head_commit.message }} (Built from ${{ github.event.head_commit.id }})"
