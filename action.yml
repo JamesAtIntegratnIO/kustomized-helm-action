@@ -133,7 +133,7 @@ runs:
               BASE_NAMESPACE=$(cat ../../base/kustomization.yaml | yq e '.namespace // "default"' -)
               NAMESPACE=$(cat kustomization.yaml | yq e ".namespace // \"$BASE_NAMESPACE\"" -)
               echo "Building Helm dependencies for the base directory"
-              helm dependency build ../../base
+              helm dependency build --quiet ../../base
               echo "Creating values.yaml files"
               touch ../../base/values.yaml
               touch values.yaml
