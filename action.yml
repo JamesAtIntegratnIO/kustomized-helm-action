@@ -53,7 +53,7 @@ runs:
         echo "dirs=${dirs%,}" >> $GITHUB_ENV
         echo "Found directories for processing: $dirs"
       shell: bash
-      
+
     # This script is used to initialize an associative array to hold repositories and add/update Helm repositories.
     # It loops over directories specified in the 'dirs' variable and checks if a 'Chart.yaml' file exists in the base directory.
     # If the file exists, it extracts the dependencies and their repository URLs using 'yq' command.
@@ -154,7 +154,7 @@ runs:
               BASE_NAMESPACE=$(cat ../../base/kustomization.yaml | yq e '.namespace // "default"' -)
               NAMESPACE=$(cat kustomization.yaml | yq e ".namespace // \"$BASE_NAMESPACE\"" -)
               echo "Building Helm dependencies for the base directory"
-              helm dependency build --quiet ../../base
+              helm dependency build ../../base
               echo "Creating values.yaml files"
               touch ../../base/values.yaml
               touch values.yaml
