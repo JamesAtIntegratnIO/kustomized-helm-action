@@ -102,13 +102,17 @@ runs:
         done
 
         # Add and update the repositories
-        for repo_name in "${!repos[@]}"; do
-          repo_url="${repos[$repo_name]}"
-          echo "Adding Helm repository: $repo_name=$repo_url"
-          helm repo add "$repo_name" "$repo_url"
-        done
-        echo "Updating Helm repositories"
-        helm repo update
+        if [ ${#repos[@]} -gt 0 ]; then
+          for repo_name in "${!repos[@]}"; do
+            repo_url="${repos[$repo_name]}"
+            echo "Adding Helm repository: $repo_name=$repo_url"
+            helm repo add "$repo_name" "$repo_url"
+          done
+          echo "Updating Helm repositories"
+          helm repo update
+        else
+          echo "No repositories found. Skipping repository update."
+        fi
       shell: bash
 
     # This script performs the following actions:
