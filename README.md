@@ -69,6 +69,35 @@ jobs:
 
 In this example, the action will generate manifests for the Helm charts and kustomize overlays in the `dev` directory, and commit the changes to the `manifests` branch. It will use Helm version `v3.14.4`.
 
+## Diagram
+Below is a diagram of how I use this with ArgoCD to manage changes on my cluster.
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Repo as Repo Source Branch
+    participant GitHubAction as GitHub Action: jamesatintegratnio/kustomized-helm-action@main
+    participant RepoD as Repo Destination Branch
+    participant ArgoCD as ArgoCD
+
+    Dev->>Repo: Commit change to Helm Chart or Kustomized manifest
+    Repo->>GitHubAction: Trigger action
+    GitHubAction->>GitHubAction: Set git config
+    GitHubAction->>GitHubAction: Set up Helm
+    GitHubAction->>GitHubAction: Get Directories for Processing
+    GitHubAction->>GitHubAction: Add Helm repositories dynamically
+    GitHubAction->>GitHubAction: Build Helm and Kubernetes manifests
+    GitHubAction->>GitHubAction: Commit changes to local destination branch
+
+    GitHubAction->>RepoD: Push changes to Destination Branch
+    RepoD->>ArgoCD: ArgoCD picks up the change from Destination Branch
+    ArgoCD->>ArgoCD: Compute diff from existing application deployment
+    ArgoCD->>Cluster: Sync and apply the change to the cluster
+
+```
 ## Author
 
 This action was created by James D.
+
+## Links
+[Inspiration Blog from Akuity](https://akuity.io/blog/the-rendered-manifests-pattern/)
