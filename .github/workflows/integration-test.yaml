@@ -1,0 +1,60 @@
+name: Test Kustomized Helm Action
+
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+          
+      - name: Create dummy Helm chart and kustomize overlay
+        run: |
+          mkdir -p dev/test-chart/base
+          mkdir -p dev/test-chart/overlays/dev
+
+          # Create a simple Chart.yaml file with a public dependency
+          cat <<EOF > dev/test-chart/base/Chart.yaml
+          apiVersion: v2
+          name: test-chart
+          description: A Helm chart for Kubernetes
+          version: 0.1.0
+          dependencies:
+            - name: redis
+              version: 19.5.0
+              repository: https://charts.bitnami.com/bitnami
+          EOF
+
+          # Create a dummy kustomization.yaml file in base
+          cat <<EOF > dev/test-chart/base/kustomization.yaml
+          namespace: base-namespace
+          EOF
+
+          # Create a dummy kustomization.yaml file in overlays/dev with a helmChart definition
+          cat <<EOF > dev/test-chart/overlays/dev/kustomization.yaml
+          namespace: dev-namespace
+          helmCharts:
+            - name: nginx
+              releaseName: nginx
+              repo: https://charts.bitnami.com/bitnami
+              version: 
+              valuesInline:
+                replicaCount: 2
+          EOF
+
+      - name: Run Kustomized Helm Action
+        uses: ./
+        with:
+          source_folder: 'dev'
+          destination_branch: 'test-branch'
+          helm_version: 'v3.14.4'
+          dry_run: true
+      - name: Check the generated files
+        run: |
+          if [ ! -f dev/test-chart/overlays/dev/all.yaml ]; then
+            echo "all.yaml not found"
+            exit 1
+          fi
+          cat dev/test-chart/overlays/dev/all.yaml
