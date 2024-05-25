@@ -17,6 +17,10 @@ inputs:
     description: 'The version of Helm to use'
     required: false
     default: 'v3.14.4'
+  dry_run:
+    description: 'Whether to skip the commit and push steps (its for testing)'
+    required: false
+    default: 'false'
 runs:
   using: composite
 
@@ -160,7 +164,7 @@ runs:
             fi
             cd $dir
             echo "Building Kubernetes manifests using kustomize"
-            kustomize build . > all.yaml
+            kustomize build --enable-helm . > all.yaml
             git add all.yaml
           fi
           cd $GITHUB_WORKSPACE
@@ -179,6 +183,12 @@ runs:
     # 9. Prints a message indicating whether changes were committed and pushed or if no changes were detected.
     - name: Commit changes to branch
       run: |
+        if [ "${{ inputs.dry_run }}" = "true" ]; then
+          echo "Skipping commit step due to dry_run"
+          echo "Generated all.yaml files: "
+          find . -name "all.yaml" -type f -exec cat {} \;
+          exit 0
+        fi
         if ! git fetch origin ${{ inputs.destination_branch }}:${{ inputs.destination_branch }}; then
           echo "Failed to fetch changes from origin, will create the branch instead"
         fi
