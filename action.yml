@@ -58,17 +58,166 @@ runs:
       shell: bash
 
     - name: Add Helm repositories dynamically
-      run: ./scripts/helm_repo_add.sh
+      run: |
+        #!/bin/bash
+        set -eo pipefail
+
+        declare -A repos
+
+        # Loop over directories to build the list of repositories
+        IFS=',' read -r -a dir_array <<<"${DIRS}"
+        for dir in "${dir_array[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "Processing directory: $dir"
+            cd $dir
+            cd ../../base
+            if [ -f Chart.yaml ]; then
+              echo "Chart.yaml found in the base directory"
+              dependencies=$(yq e '.dependencies[] | (.name + "=" + .repository)' Chart.yaml)
+              IFS=$'\n'
+              for dep in $dependencies; do
+                repo_name="${dep%=*}"
+                repo_url="${dep#*=}"
+                if [ ! -z "$repo_url" ]; then
+                  # Add the repository to the associative array
+                  repos["$repo_name"]="$repo_url"
+                fi
+              done
+            else
+              echo "Chart.yaml does not exist in the base directory"
+            fi
+            cd $GITHUB_WORKSPACE
+          fi
+        done
+
+        # Add and update the repositories
+        if [ ${#repos[@]} -gt 0 ]; then
+          for repo_name in "${!repos[@]}"; do
+            repo_url="${repos[$repo_name]}"
+            echo "Adding Helm repository: $repo_name=$repo_url"
+            helm repo add "$repo_name" "$repo_url"
+          done
+          echo "Updating Helm repositories"
+          helm repo update
+        else
+          echo "No repositories found. Skipping repository update."
+        fi
+
       shell: bash
     
     - name: Template Helm charts
       env:
         INCLUDE_CRDS: ${{ inputs.include_crds }}
-      run: ./scripts/helm_template_charts.sh
+      run: |
+        #!/bin/bash
+        set -eo pipefail
+
+        # Check if required variables are set
+        for var in DIRS INCLUDE_CRDS; do
+          if [ -z "${!var}" ]; then
+            echo "Error: $var is not set. Please set it before running the script."
+            exit 1
+          fi
+        done
+
+        IFS=',' read -r -a dir_array <<<"${DIRS}"
+        for dir in "${dir_array[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "Processing directory: $dir"
+            cd $dir
+            cd ../../base
+            if [ -f Chart.yaml ]; then
+              echo "Chart.yaml found in the base directory"
+              cd $dir
+              BASE_NAMESPACE=$(cat ../../base/kustomization.yaml | yq e '.namespace // "default"' -)
+              NAMESPACE=$(cat kustomization.yaml | yq e ".namespace // \"$BASE_NAMESPACE\"" -)
+              echo "Building Helm dependencies for the base directory"
+              helm dependency build ../../base
+              echo "Creating values.yaml files"
+              touch ../../base/values.yaml
+              touch values.yaml
+              echo "Generating Helm template"
+            fi
+            if [ $INCLUDE_CRDS = true ]; then
+              HELM_CMD="helm template \
+                        --release-name ${NAMESPACE} \
+                        ../../base \
+                        -f ../../base/values.yaml \
+                        --include-crds \
+                        -f values.yaml > helm-all.yaml"
+            else
+              HELM_CMD="helm template \
+                        --release-name ${NAMESPACE} \
+                        ../../base \
+                        -f ../../base/values.yaml \
+                        -f values.yaml > helm-all.yaml"
+            fi
+            eval $HELM_CMD
+            cd $dir
+            echo "Building Kubernetes manifests using kustomize"
+            if ! kustomize build --enable-helm . -o ./all.yaml; then
+              echo "Error: Failed to build Kubernetes manifests using kustomize."
+              exit 1
+            fi
+            git add all.yaml
+          fi
+          cd $GITHUB_WORKSPACE
+        done
+
       shell: bash
 
     - name: Commit changes to branch
-      run: ./scripts/git_commit_push.sh
+      run: |
+        #!/bin/bash
+        set -eo pipefail
+
+        # Check if required variables are set
+        for var in DRY_RUN DESTINATION_BRANCH COMMIT_MESSAGE COMMIT_ID; do
+          if [ -z "${!var}" ]; then
+            echo "Error: $var is not set. Please set it before running the script."
+            exit 1
+          fi
+        done
+
+        if [ "$DRY_RUN" = "true" ]; then
+          echo "Skipping commit step due to dry_run"
+          echo "Generated all.yaml files: "
+          if ! find . -name "all.yaml" -type f -exec cat {} \; > /dev/null; then
+            echo "Error: No 'all.yaml' files found."
+            exit 1
+          fi
+          find . -name "all.yaml" -type f -exec cat {} \;
+          exit 0
+        fi
+
+        if ! git fetch origin "$DESTINATION_BRANCH":"$DESTINATION_BRANCH"; then
+          echo "Failed to fetch changes from origin, will create the branch instead"
+        fi
+
+        git stash
+
+        if git show-ref --verify refs/heads/"$DESTINATION_BRANCH"; then
+          git switch  "$DESTINATION_BRANCH"
+        else
+          git switch --create  "$DESTINATION_BRANCH" origin/"$DESTINATION_BRANCH" || git switch --create "$DESTINATION_BRANCH"
+        fi
+
+        git rm -rf . --quiet
+        git stash pop
+        git add **/all.yaml
+
+        if ! git diff --quiet --staged; then
+          git commit -uno -m "${COMMIT_MESSAGE} (Built from ${COMMIT_ID})"
+          if git push --set-upstream origin "$DESTINATION_BRANCH"; then
+            echo "Push successful"
+          else
+            echo "Push failed"
+            exit 1
+          fi
+          echo "Changes committed and pushed to branch"
+        else
+          echo "No changes detected"
+        fi
       env:
         DRY_RUN: ${{ inputs.dry_run }}
         DESTINATION_BRANCH: ${{ inputs.destination_branch }}
