@@ -26,22 +26,23 @@ for dir in "${dir_array[@]}"; do
       touch ../../base/values.yaml
       touch values.yaml
       echo "Generating Helm template"
-    fi
-    if [ $INCLUDE_CRDS = true ]; then
-      HELM_CMD="helm template \
+      if [ $INCLUDE_CRDS = true ]; then
+        HELM_CMD="helm template \
                 --release-name ${NAMESPACE} \
                 ../../base \
                 -f ../../base/values.yaml \
                 --include-crds \
                 -f values.yaml > helm-all.yaml"
-    else
-      HELM_CMD="helm template \
+      else
+        HELM_CMD="helm template \
                 --release-name ${NAMESPACE} \
                 ../../base \
                 -f ../../base/values.yaml \
                 -f values.yaml > helm-all.yaml"
+      fi
+      eval $HELM_CMD
     fi
-    eval $HELM_CMD
+
     cd $dir
     echo "Building Kubernetes manifests using kustomize"
     if ! kustomize build --enable-helm . -o ./all.yaml; then
