@@ -69,16 +69,6 @@ runs:
       run: ./scripts/helm_template_charts.sh
       shell: bash
 
-    # This script performs the following steps:
-    # 1. Fetches the latest changes from the remote repository for the specified branch.
-    # 2. Stashes any local changes.
-    # 3. Checks if the branch already exists locally. If it does, switches to that branch. If not, creates a new branch based on the remote branch.
-    # 4. Removes all files and directories in the current directory.
-    # 5. Pops the stashed changes.
-    # 6. Adds all files named "all.yaml" to the staging area.
-    # 7. Checks if there are any staged changes. If there are, commits the changes with the commit message from the latest commit in the current branch.
-    # 8. Pushes the changes to the remote repository.
-    # 9. Prints a message indicating whether changes were committed and pushed or if no changes were detected.
     - name: Commit changes to branch
       run: ./scripts/git_commit_push.sh
       env:
