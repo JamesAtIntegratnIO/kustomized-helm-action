@@ -41,6 +41,12 @@ The branch to commit the changes to. This input is not required. The default val
 ### `helm_version`
 The version of Helm to use. This input is not required. The default value is `'v3.14.4'`.
 
+### `include_crds`
+Whether to include CRDs in the generated manifests. This input is not required. The default value is `true`.
+
+### `dry_run`
+Whether to perform a dry run without committing changes. This input is not required. The default value is `false`.
+
 ## Usage Example
 
 Here's an example of how to use this action in a workflow:

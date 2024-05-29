@@ -1,6 +1,6 @@
 name: Test Kustomized Helm Action
 
-on: [pull_request]
+on: [push]
 
 jobs:
   test:
@@ -27,14 +27,28 @@ jobs:
               repository: https://charts.bitnami.com/bitnami
           EOF
 
+          # Create a dummy namespace.yaml file in base
+          cat <<EOF > dev/test-chart/base/namespace.yaml
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: dev-namespace
+          EOF
+
           # Create a dummy kustomization.yaml file in base
           cat <<EOF > dev/test-chart/base/kustomization.yaml
-          namespace: base-namespace
+          namespace: dev-namespace
+          resources:
+            - namespace.yaml
           EOF
 
           # Create a dummy kustomization.yaml file in overlays/dev with a helmChart definition
           cat <<EOF > dev/test-chart/overlays/dev/kustomization.yaml
           namespace: dev-namespace
+          resources:
+            - ../../base
+            - ./helm-all.yaml
+
           helmCharts:
             - name: nginx
               releaseName: nginx
@@ -51,10 +65,8 @@ jobs:
           destination_branch: 'test-branch'
           helm_version: 'v3.14.4'
           dry_run: true
-      - name: Check the generated files
+
+      - name: Validate generated files are staged
         run: |
-          if [ ! -f dev/test-chart/overlays/dev/all.yaml ]; then
-            echo "all.yaml not found"
-            exit 1
-          fi
-          cat dev/test-chart/overlays/dev/all.yaml
+            git status
+            git diff --name-only --cached | grep "dev/test-chart/overlays/dev/all.yaml" || { echo "all.yaml not found"; exit 1; }
