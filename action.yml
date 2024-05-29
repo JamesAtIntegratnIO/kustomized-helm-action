@@ -137,8 +137,10 @@ runs:
               touch ../../base/values.yaml
               touch values.yaml
               echo "Generating Helm template"
+
               if [ $INCLUDE_CRDS = true ]; then
                 HELM_CMD="helm template \
+
                         --release-name ${NAMESPACE} \
                         ../../base \
                         -f ../../base/values.yaml \
@@ -153,7 +155,6 @@ runs:
               fi
               eval $HELM_CMD
             fi
-
             cd $dir
             echo "Building Kubernetes manifests using kustomize"
             if ! kustomize build --enable-helm . -o ./all.yaml; then
