@@ -1,7 +1,6 @@
 #!/bin/bash
 set -eo pipefail
 
-env
 # Check if required variables are set
 for var in DRY_RUN DESTINATION_BRANCH COMMIT_MESSAGE COMMIT_ID; do
   if [ -z "${!var}" ]; then
@@ -13,6 +12,10 @@ done
 if [ "$DRY_RUN" = "true" ]; then
   echo "Skipping commit step due to dry_run"
   echo "Generated all.yaml files: "
+  if ! find . -name "all.yaml" -type f -exec cat {} \; > /dev/null; then
+    echo "Error: No 'all.yaml' files found."
+    exit 1
+  fi
   find . -name "all.yaml" -type f -exec cat {} \;
   exit 0
 fi

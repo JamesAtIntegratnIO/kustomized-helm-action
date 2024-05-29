@@ -38,13 +38,12 @@ runs:
       with:
         version: ${{ inputs.helm_version }}
 
-    # This script sets the `dirs` environment variable by finding directories that match a specific pattern.
-    # It uses the `find` command to search for directories under the current working directory that match the pattern:
-    #   - The directory must have a subdirectory named `${{ inputs.source_folder }}`.
-    #   - The subdirectory must have a subdirectory named "overlays".
-    #   - The subdirectory "overlays" must have at least one more subdirectory.
-    # The found directories are then stored in the `dirs` variable, separated by commas.
-    # Finally, the value of `dirs` is appended to the `$GITHUB_ENV` file, making it available as an environment variable in subsequent steps.
+    - name: Set some ENV Vars
+      run: |
+        echo "COMMIT_MESSAGE=${{ github.event.head_commit.message }}" >> $GITHUB_ENV
+        echo "COMMIT_ID=${{ github.event.head_commit.id }}" >> $GITHUB_ENV
+      shell: bash
+
     - name: Get Directories for Processing
       run: |
         set -e
@@ -55,8 +54,6 @@ runs:
         fi
         echo "DIRS=${dirs%,}" >> $GITHUB_ENV
         echo "Found directories for processing: $dirs"
-        echo "COMMIT_MESSAGE=${{ github.event.head_commit.message }}" >> $GITHUB_ENV
-        echo "COMMIT_ID=${{ github.event.head_commit.id }}" >> $GITHUB_ENV
       shell: bash
 
     - name: Add Helm repositories dynamically

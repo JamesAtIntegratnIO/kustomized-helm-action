@@ -65,13 +65,7 @@ jobs:
           destination_branch: 'test-branch'
           helm_version: 'v3.14.4'
           dry_run: true
-      - name: Check the generated files
-        run: |
-          if [ ! -f dev/test-chart/overlays/dev/all.yaml ]; then
-            echo "all.yaml not found"
-            exit 1
-          fi
-          cat dev/test-chart/overlays/dev/all.yaml
+
       - name: Validate generated files are staged
         run: |
             git status

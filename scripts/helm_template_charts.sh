@@ -44,7 +44,7 @@ for dir in "${dir_array[@]}"; do
     eval $HELM_CMD
     cd $dir
     echo "Building Kubernetes manifests using kustomize"
-    if ! kustomize build --enable-helm . >all.yaml; then
+    if ! kustomize build --enable-helm . -o ./all.yaml; then
       echo "Error: Failed to build Kubernetes manifests using kustomize."
       exit 1
     fi

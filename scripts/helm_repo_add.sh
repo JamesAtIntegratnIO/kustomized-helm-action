@@ -1,24 +1,6 @@
-# This script is used to initialize an associative array to hold repositories and add/update Helm repositories.
-# It loops over directories specified in the 'dirs' variable and checks if a 'Chart.yaml' file exists in the base directory.
-# If the file exists, it extracts the dependencies and their repository URLs using 'yq' command.
-# It then adds the repositories to the associative array.
-# Finally, it adds and updates the Helm repositories using the 'helm' command.
+#!/bin/bash
+set -eo pipefail
 
-# Variables:
-# - dirs: A comma-separated list of directories to process.
-
-# Steps:
-# 1. Initialize an associative array to hold the repositories.
-# 2. Loop over the directories specified in 'dirs' variable.
-#    a. Check if the directory exists.
-#    b. If it exists, change the directory to the base directory.
-#    c. Check if 'Chart.yaml' file exists in the base directory.
-#       - If it exists, extract the dependencies and their repository URLs.
-#       - Add the repositories to the associative array.
-#    d. Change the directory back to the original directory.
-# 3. Add and update the Helm repositories using the associative array.
-
-# Initialize an associative array to hold the repositories
 declare -A repos
 
 # Loop over directories to build the list of repositories
