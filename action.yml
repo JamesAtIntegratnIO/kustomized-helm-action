@@ -162,7 +162,7 @@ runs:
             fi
             cd $dir
             echo "Building Kubernetes manifests using kustomize"
-            if ! kustomize build --enable-helm . -o ./all.yaml; then
+            if ! kustomize build --enable-helm --enable-alpha-plugins . -o ./all.yaml; then
               echo "Error: Failed to build Kubernetes manifests using kustomize."
               exit 1
             fi
