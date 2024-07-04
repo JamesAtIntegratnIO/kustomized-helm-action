@@ -161,7 +161,9 @@ runs:
               echo "Error: Failed to build Kubernetes manifests using kustomize."
               exit 1
             fi
-            git add all.yaml
+            echo "Creating kustomization.yaml"
+            echo -e "resources:\n- all.yaml" > kustomization.yaml
+            git add all.yaml kustomization.yaml
           fi
           cd $GITHUB_WORKSPACE
         done
@@ -205,7 +207,13 @@ runs:
         fi
 
         git rm -rf . --quiet
-        git stash pop
+        git stash apply || {
+          echo "Conflicts detected during stash apply. Overwriting with stashed files..."
+          # List all files in the stash and checkout each one, overwriting the existing files
+          git checkout stash -- $(git diff --name-only | tr '\n' ' ')
+          echo "All stashed files have been applied and overwritten existing files."
+        }
+
         git add **/all.yaml
 
         if ! git diff --quiet --staged; then
