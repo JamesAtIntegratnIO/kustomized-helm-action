@@ -4,6 +4,7 @@ This GitHub Action generates manifests for Helm charts and Kustomize overlays, a
 
 ## Features
 - **Dynamic Helm Repository Management**: Automatically adds Helm repositories based on specified source folders.
+- **Complex Values Management**: Supports multiple values files for Helm charts.
 - **Customizable Manifests**: Supports Helm charts and Kustomize overlays for flexible Kubernetes configurations.
 - **Automated Deployment**: Integrates with CI/CD pipelines for seamless Kubernetes application management.
 
@@ -18,11 +19,15 @@ source_folder
       Chart.yaml
       kustomization.yaml
       values.yaml
+      values-dep1.yaml
+      values-dep2.yaml
     overlays
       cluster1
         kustomization.yaml
         my-patch.yaml
         values.yaml
+        values-dep1.yaml
+        values-dep2.yaml
       cluster2
         kustomization.yaml
         values.yaml
@@ -68,7 +73,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Generate manifests
-        uses: your-github-username/kustomized-helm-action@v1
+        uses: jamesAtIntegratnIO/kustomized-helm-action@v1
         with:
           source_folder: 'dev'
           destination_branch: 'manifests'
