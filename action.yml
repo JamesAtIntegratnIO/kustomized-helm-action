@@ -133,9 +133,13 @@ runs:
               NAMESPACE=$(cat kustomization.yaml | yq e ".namespace // \"$BASE_NAMESPACE\"" -)
               echo "Building Helm dependencies for the base directory"
               helm dependency build ../../base
-              echo "Creating values.yaml files"
+              echo "Creating values.yaml files if they don't exist"
               touch ../../base/values.yaml
               touch values.yaml
+              echo "Fetching additional values files"
+              BASE_VALUES_FILES=$(find ../../base -name "values*.yaml" -type f | sort | xargs -I {} echo -n "-f {} ")
+              VALUES_FILES=$(find . -name "values*.yaml" -type f | sort | xargs -I {} echo -n "-f {} ")
+              echo -e "Order of Values Files:\n$(echo "$BASE_VALUES_FILES" "$VALUES_FILES" | sed -e 's/-f \.\//\n/g' -e 's/-f //g')"
               echo "Generating Helm template"
 
               if [ $INCLUDE_CRDS = true ]; then
@@ -145,13 +149,13 @@ runs:
                         ../../base \
                         -f ../../base/values.yaml \
                         --include-crds \
-                        -f values.yaml > helm-all.yaml"
+                        ${VALUES_FILES} > helm-all.yaml"
               else
                 HELM_CMD="helm template \
                         --release-name ${NAMESPACE} \
                         ../../base \
                         -f ../../base/values.yaml \
-                        -f values.yaml > helm-all.yaml"
+                        ${VALUES_FILES} > helm-all.yaml"
               fi
               eval $HELM_CMD
             fi
